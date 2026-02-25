@@ -1,11 +1,26 @@
 import Foundation
 
 public protocol LogRoute {
+    var routeType: LogRouteType { get }
     func isEnabled(for level: LogLevel) -> Bool
     func log(_ message: LogMessage)
 }
 
+public protocol LogFileLocationProviding {
+    var logFileURL: URL { get }
+}
+
+public enum LogRouteType: Hashable, Sendable {
+    case osLog
+    case file
+    case custom(String)
+}
+
 public extension LogRoute {
+    var routeType: LogRouteType {
+        .custom(String(describing: type(of: self)))
+    }
+
     func isEnabled(for level: LogLevel) -> Bool {
         true
     }
@@ -99,6 +114,31 @@ public final class Logger {
         )
 
         activeRoutes.forEach { $0.log(payload) }
+    }
+
+    public func logFileURL(for routeType: LogRouteType) -> URL? {
+        let snapshot = lock.withLock { routes }
+        let matchingRoute = snapshot.first { route in
+            route.routeType == routeType
+        }
+
+        return (matchingRoute as? any LogFileLocationProviding)?.logFileURL
+    }
+
+    public func logFilePath(for routeType: LogRouteType) -> String? {
+        if let logFileURL = logFileURL(for: routeType) {
+            return logFileURL.path
+        }
+
+        return nil
+    }
+
+    public func firstLogFileURL() -> URL? {
+        logFileURL(for: .file)
+    }
+
+    public func firstLogFilePath() -> String? {
+        logFilePath(for: .file)
     }
 
     private func enabledRoutes(for level: LogLevel) -> [any LogRoute] {

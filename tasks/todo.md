@@ -73,3 +73,50 @@
 - `swift test` passes.
 - iOS simulator SDK build passes (`arm64-apple-ios15.0-simulator`).
 - tvOS simulator SDK build passes (`arm64-apple-tvos15.0-simulator`).
+
+# File Route Plan
+
+## Tasks
+- [x] Add a new file route that only persists `.info` and `.error` logs.
+- [x] Enforce a configurable max file size to keep payload bounded for API upload.
+- [x] Keep write-path overhead low for heavy logging scenarios.
+- [x] Add router accessors on `Logger` to retrieve the stored log file path/URL.
+- [x] Add Swift Testing coverage for filtering, size cap behavior, and path retrieval.
+- [x] Run `swift test` plus iOS/tvOS simulator SDK builds.
+
+## Review
+- Added `FileLogRoute` with route filtering limited to `.info` and `.error`.
+- Added bounded file-size behavior via `maxBytes`; route truncates and restarts the file when the next append would exceed the cap.
+- Kept write overhead low with an internal utility-priority serial queue, a persistent file handle, and cached current file size tracking.
+- Added router path retrieval APIs on `Logger`: `firstLogFileURL()` and `firstLogFilePath()`.
+- Added Swift Testing coverage for: info/error-only filtering, size cap enforcement, and router path retrieval.
+- Verification passed:
+  - `swift test`
+  - iOS simulator SDK build (`arm64-apple-ios15.0-simulator`)
+  - tvOS simulator SDK build (`arm64-apple-tvos15.0-simulator`)
+
+# Route Type Lookup Plan
+
+## Tasks
+- [x] Add enum-based route identification so any `LogRoute` has a route type.
+- [x] Assign concrete route types for `OSLogRoute` and `FileLogRoute`.
+- [x] Add typed lookup APIs to retrieve file URL/path by route type rather than first route only.
+- [x] Keep existing first-file helper APIs for backward compatibility.
+- [x] Add Swift Testing coverage for typed lookups.
+- [x] Run `swift test` plus iOS/tvOS simulator SDK builds.
+
+## Review
+- Added `LogRouteType` enum with `.osLog`, `.file`, and `.custom(String)`.
+- Extended `LogRoute` with `routeType`; default identifies custom routes via `.custom(typeName)`.
+- Set concrete route types:
+  - `OSLogRoute.routeType == .osLog`
+  - `FileLogRoute.routeType` defaults to `.file` and can be overridden via initializer for custom typed lookup.
+- Added typed retrieval APIs on `Logger`:
+  - `logFileURL(for:)`
+  - `logFilePath(for:)`
+- Preserved existing `firstLogFileURL()`/`firstLogFilePath()` by routing them through `.file`.
+- Added tests validating typed lookup and backward-compatible helper behavior.
+- Verification passed:
+  - `swift test`
+  - iOS simulator SDK build (`arm64-apple-ios15.0-simulator`)
+  - tvOS simulator SDK build (`arm64-apple-tvos15.0-simulator`)

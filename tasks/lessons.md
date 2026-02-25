@@ -12,3 +12,4 @@
 - Do not over-interpret the multiline exceptions; default to multiline for multi-parameter declarations/calls in touched files unless a case is truly trivial.
 - Keep initializer declarations in touched logging files visually consistent with the chosen multiline style, even when only two parameters are present.
 - Apply the same multiline style to multi-parameter call sites in touched files (not only declarations), including short two-argument calls when consistency is requested.
+- When multiple routes can expose similar capabilities (like file paths), avoid “first route” lookups as the primary API and provide enum-typed route selection.

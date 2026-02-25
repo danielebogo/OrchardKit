@@ -19,6 +19,10 @@ protocol OSLogWriting {
 public struct OSLogRoute: LogRoute {
     private let writer: any OSLogWriting
 
+    public var routeType: LogRouteType {
+        .osLog
+    }
+
     public init(
         subsystem: String,
         category: String
