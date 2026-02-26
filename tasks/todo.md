@@ -188,3 +188,31 @@
   - `swift test`
   - iOS simulator SDK build (`arm64-apple-ios15.0-simulator`)
   - tvOS simulator SDK build (`arm64-apple-tvos15.0-simulator`)
+
+# File Organization Refactor Plan
+
+## Tasks
+- [x] Split `OrchardKitLogging` core types into focused source files (protocols, enums, message model, logger).
+- [x] Keep public API and runtime behavior unchanged while reorganizing files.
+- [x] Split `OrchardKitLoggingTests` into focused files by feature (logger routing, file route, OSLog route) with shared test doubles.
+- [x] Remove obsolete monolithic test file.
+- [x] Run `swift test` and iOS/tvOS simulator SDK builds.
+
+## Review
+- `Logger.swift` now contains only router behavior; shared type declarations moved into dedicated files:
+  - `LogRoute.swift`
+  - `LogRouteType.swift`
+  - `LogLevel.swift`
+  - `LogMessage.swift`
+  - `NSLocking+WithLock.swift`
+- `OrchardKitLoggingTests` is now organized by behavior:
+  - `LoggerRouteTests.swift`
+  - `FileLogRouteTests.swift`
+  - `OSLogRouteTests.swift`
+  - `TestDoubles.swift`
+- Removed old monolithic test file `LoggerTests.swift`.
+- Public API and behavior remain unchanged; this refactor is structural only.
+- Verification passed:
+  - `swift test`
+  - iOS simulator SDK build (`arm64-apple-ios15.0-simulator`)
+  - tvOS simulator SDK build (`arm64-apple-tvos15.0-simulator`)

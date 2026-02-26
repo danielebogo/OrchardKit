@@ -16,3 +16,4 @@
 - After a review pass, implement every requested finding unless explicitly excluded by the user, and reflect each fix with targeted tests where feasible.
 - For logger routers, prefer simple fan-out design and avoid cross-route synchronization that can create deadlocks or throughput regressions.
 - For route APIs, expose simple consumer-facing initializers for common setup (like file-name injection) while keeping explicit low-level options.
+- During file-organization refactors, keep each public protocol/type in its own focused file when the user asks for clearer structure.
