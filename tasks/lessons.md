@@ -13,3 +13,6 @@
 - Keep initializer declarations in touched logging files visually consistent with the chosen multiline style, even when only two parameters are present.
 - Apply the same multiline style to multi-parameter call sites in touched files (not only declarations), including short two-argument calls when consistency is requested.
 - When multiple routes can expose similar capabilities (like file paths), avoid “first route” lookups as the primary API and provide enum-typed route selection.
+- After a review pass, implement every requested finding unless explicitly excluded by the user, and reflect each fix with targeted tests where feasible.
+- For logger routers, prefer simple fan-out design and avoid cross-route synchronization that can create deadlocks or throughput regressions.
+- For route APIs, expose simple consumer-facing initializers for common setup (like file-name injection) while keeping explicit low-level options.

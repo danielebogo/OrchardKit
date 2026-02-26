@@ -2,11 +2,12 @@ import Foundation
 
 public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     public let logFileURL: URL
-    public let maxBytes: Int
     public let routeType: LogRouteType
+    public let maxBytes: Int
 
     private let fileManager: FileManager
     private let writeQueue: DispatchQueue
+    private let writeQueueKey = DispatchSpecificKey<Void>()
 
     private var fileHandle: FileHandle?
     private var currentSize: Int = 0
@@ -27,10 +28,31 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
             label: "com.orchardkit.logging.file-route",
             qos: .utility
         )
+        self.writeQueue.setSpecific(
+            key: writeQueueKey,
+            value: ()
+        )
 
         writeQueue.sync {
             prepareFileIfNeeded()
         }
+    }
+
+    public convenience init(
+        fileName: String = "orchardkit-logs.txt",
+        routeType: LogRouteType = .file,
+        maxBytes: Int = 262_144,
+        fileManager: FileManager = .default
+    ) {
+        self.init(
+            fileURL: Self.defaultFileURL(
+                fileName: fileName,
+                fileManager: fileManager
+            ),
+            routeType: routeType,
+            maxBytes: maxBytes,
+            fileManager: fileManager
+        )
     }
 
     public static func defaultFileURL(
@@ -50,16 +72,27 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     }
 
     public func log(_ message: LogMessage) {
-        if let data = "\(message.renderedMessage)\n".data(using: .utf8) {
-            let workItem = DispatchWorkItem { [weak self] in
-                self?.append(data)
-            }
-            writeQueue.async(execute: workItem)
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.write(message)
         }
+
+        writeQueue.async(execute: workItem)
     }
 
     func flushForTesting() {
+        if DispatchQueue.getSpecific(key: writeQueueKey) != nil {
+            return
+        }
+
         writeQueue.sync {}
+    }
+
+    private func write(_ message: LogMessage) {
+        let renderedMessage = "\(message.renderedMessage)\n"
+
+        if let data = renderedMessage.data(using: .utf8) {
+            append(data)
+        }
     }
 
     private func append(_ data: Data) {
@@ -68,7 +101,14 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         }
 
         if currentSize + data.count > maxBytes {
-            truncateFile()
+            let truncateSucceeded = truncateFile()
+            if !truncateSucceeded {
+                return
+            }
+
+            if currentSize + data.count > maxBytes {
+                return
+            }
         }
 
         if fileHandle == nil {
@@ -81,6 +121,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
                 currentSize += data.count
             } catch {
                 closeFileHandle()
+                currentSize = existingFileSize()
             }
         }
     }
@@ -136,13 +177,22 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         }
     }
 
-    private func truncateFile() {
+    private func truncateFile() -> Bool {
         closeFileHandle()
-        try? Data().write(
-            to: logFileURL,
-            options: .atomic
-        )
-        currentSize = 0
+
+        do {
+            try Data().write(
+                to: logFileURL,
+                options: .atomic
+            )
+        } catch {
+            currentSize = existingFileSize()
+            openFileHandle()
+            return false
+        }
+
+        currentSize = existingFileSize()
         openFileHandle()
+        return true
     }
 }

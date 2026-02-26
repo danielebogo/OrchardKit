@@ -187,6 +187,22 @@ func fileLogRouteCapsFileSize() throws {
     #expect(fileSize <= maxBytes)
 }
 
+@Test("FileLogRoute supports custom file name initializer")
+func fileLogRouteSupportsCustomFileNameInitializer() {
+    let fileManager = FileManager.default
+    let fileName = "orchardkit-\(UUID().uuidString).log"
+    let fileRoute = FileLogRoute(
+        fileName: fileName,
+        maxBytes: 512,
+        fileManager: fileManager
+    )
+    defer {
+        try? fileManager.removeItem(at: fileRoute.logFileURL)
+    }
+
+    #expect(fileRoute.logFileURL.lastPathComponent == fileName)
+}
+
 @Test("Logger exposes file route path")
 func loggerExposesFileRoutePath() throws {
     let fileManager = FileManager.default
@@ -211,6 +227,33 @@ func loggerExposesFileRoutePath() throws {
     #expect(logger.logFileURL(for: .file) == fileURL)
     #expect(logger.logFilePath(for: .osLog) == nil)
     #expect(logger.logFileURL(for: .osLog) == nil)
+}
+
+@Test("Logger file lookup skips non file route with same type")
+func loggerFileLookupSkipsNonFileRouteWithSameType() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
+    let routeWithoutFileLocation = RouteWithoutFileLocation(routeType: .file)
+    let fileRoute = FileLogRoute(
+        fileURL: fileURL,
+        maxBytes: 512,
+        fileManager: fileManager
+    )
+    let logger = OrchardKitLogging.Logger(
+        routes: [routeWithoutFileLocation, fileRoute]
+    )
+
+    #expect(logger.logFilePath(for: .file) == fileURL.path)
+    #expect(logger.logFileURL(for: .file) == fileURL)
 }
 
 @Test("Logger exposes file route path for custom route type")
@@ -336,6 +379,12 @@ private final class SpyRoute: LogRoute {
     func log(_ message: LogMessage) {
         messages.append(message)
     }
+}
+
+private struct RouteWithoutFileLocation: LogRoute {
+    let routeType: LogRouteType
+
+    func log(_ message: LogMessage) {}
 }
 
 private final class DisabledRoute: LogRoute {

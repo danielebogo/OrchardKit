@@ -120,3 +120,71 @@
   - `swift test`
   - iOS simulator SDK build (`arm64-apple-ios15.0-simulator`)
   - tvOS simulator SDK build (`arm64-apple-tvos15.0-simulator`)
+
+# Post-Review Hardening Plan
+
+> Note: this plan was later simplified by the `Logger Simplicity Alignment Plan` section below.
+
+## Tasks
+- [x] Apply all requested review fixes except OSLog privacy handling (explicitly excluded by product decision).
+- [x] Fix `Logger.logFileURL(for:)` to find the first matching route that also provides `LogFileLocationProviding`.
+- [x] Harden `FileLogRoute` for heavy logging scenarios with bounded enqueue behavior and dropped-log accounting.
+- [x] Ensure file-size truncation logic is failure-safe and re-synchronizes internal size tracking.
+- [x] Prevent testing flush deadlock when invoked from the route queue.
+- [x] Strengthen concurrency behavior and tests for concurrent `addRoute` and `log` access.
+- [x] Run `swift test` and iOS/tvOS simulator SDK builds.
+
+## Review
+- Kept OSLog privacy behavior unchanged intentionally per product direction (debug-focused route).
+- `Logger` now serializes route `isEnabled` and `log` callbacks with a recursive lock, reducing concurrency hazards for mutable route implementations.
+- `Logger.logFileURL(for:)` now returns the first route that matches both `routeType` and `LogFileLocationProviding`, avoiding order-dependent false negatives.
+- `FileLogRoute` now uses a bounded in-memory buffer (`maxBufferedMessages`) and counts dropped messages to avoid unbounded queue growth under bursts.
+- `FileLogRoute` rendering/UTF-8 conversion moved to the write queue path, reducing caller-thread overhead.
+- File truncation now re-synchronizes `currentSize` based on actual filesystem state and aborts append when truncation fails.
+- `flushForTesting()` now avoids deadlock when invoked from the write queue.
+- Added Swift Testing coverage for:
+  - mixed route ordering with same `routeType` but non-file provider first
+  - concurrent `addRoute` and `log` execution
+  - bounded buffer drop behavior under burst logging
+- Verification passed:
+  - `swift test`
+  - iOS simulator SDK build (`arm64-apple-ios15.0-simulator`)
+  - tvOS simulator SDK build (`arm64-apple-tvos15.0-simulator`)
+
+# Logger Simplicity Alignment Plan
+
+## Tasks
+- [x] Remove global callback serialization from `Logger` so routes do not block each other through framework-level locking.
+- [x] Keep logger router behavior simple: snapshot enabled routes, build one payload, fan out.
+- [x] Simplify `FileLogRoute` internals by removing extra buffering/drop-accounting state.
+- [x] Keep file-route performance protection via async utility queue, persistent file handle, and max-size truncation.
+- [x] Remove tests that only validated the removed buffering/concurrency scaffolding.
+- [x] Run `swift test` and iOS/tvOS simulator SDK builds.
+
+## Review
+- Removed recursive route-callback lock from `Logger`; route invocation is now straightforward fan-out over a snapshot of enabled routes.
+- Kept route list mutation/read thread-safe with the existing lightweight lock around route array access.
+- Simplified `FileLogRoute` to one async write queue without extra buffer/drop logic; write formatting happens off caller thread.
+- Preserved file-size guard behavior and failure-safe truncate re-sync.
+- Removed over-complex concurrency/drop tests tied to the removed implementation details.
+- Verification passed:
+  - `swift test`
+  - iOS simulator SDK build (`arm64-apple-ios15.0-simulator`)
+  - tvOS simulator SDK build (`arm64-apple-tvos15.0-simulator`)
+
+# File Route Ergonomics Plan
+
+## Tasks
+- [x] Add a convenience initializer so consumers can inject a file name directly when creating `FileLogRoute`.
+- [x] Keep existing `fileURL` initializer for explicit location control.
+- [x] Add Swift Testing coverage for the custom file-name initializer.
+- [x] Run `swift test` and iOS/tvOS simulator SDK builds.
+
+## Review
+- Added `FileLogRoute.init(fileName:routeType:maxBytes:fileManager:)` that resolves the route file via `defaultFileURL`.
+- Preserved `FileLogRoute.init(fileURL:...)` for callers that want full URL control.
+- Added test: `FileLogRoute supports custom file name initializer`.
+- Verification passed:
+  - `swift test`
+  - iOS simulator SDK build (`arm64-apple-ios15.0-simulator`)
+  - tvOS simulator SDK build (`arm64-apple-tvos15.0-simulator`)

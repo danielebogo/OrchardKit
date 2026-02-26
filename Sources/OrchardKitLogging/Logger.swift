@@ -1,5 +1,6 @@
 import Foundation
 
+/// A destination that receives routed log messages.
 public protocol LogRoute {
     var routeType: LogRouteType { get }
     func isEnabled(for level: LogLevel) -> Bool
@@ -118,11 +119,15 @@ public final class Logger {
 
     public func logFileURL(for routeType: LogRouteType) -> URL? {
         let snapshot = lock.withLock { routes }
-        let matchingRoute = snapshot.first { route in
-            route.routeType == routeType
+        let matchingFileRoute = snapshot.first { route in
+            if route.routeType != routeType {
+                return false
+            }
+
+            return route is any LogFileLocationProviding
         }
 
-        return (matchingRoute as? any LogFileLocationProviding)?.logFileURL
+        return (matchingFileRoute as? any LogFileLocationProviding)?.logFileURL
     }
 
     public func logFilePath(for routeType: LogRouteType) -> String? {
@@ -147,7 +152,7 @@ public final class Logger {
     }
 }
 
-private extension NSLock {
+private extension NSLocking {
     @discardableResult
     func withLock<T>(_ body: () throws -> T) rethrows -> T {
         lock()
