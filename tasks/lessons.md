@@ -17,3 +17,6 @@
 - For logger routers, prefer simple fan-out design and avoid cross-route synchronization that can create deadlocks or throughput regressions.
 - For route APIs, expose simple consumer-facing initializers for common setup (like file-name injection) while keeping explicit low-level options.
 - During file-organization refactors, keep each public protocol/type in its own focused file when the user asks for clearer structure.
+
+## 2026-03-03
+- Before citing a repo or global `AGENTS.md`, verify the actual file path instead of relying on injected context or memory.
