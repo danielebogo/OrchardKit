@@ -20,3 +20,8 @@
 
 ## 2026-03-03
 - Before citing a repo or global `AGENTS.md`, verify the actual file path instead of relying on injected context or memory.
+
+## 2026-03-15
+- When porting shared dependency helpers into a Swift 6 package, treat mutable static container state as a concurrency boundary from the start and protect it explicitly instead of relying on plain `static var`.
+- In test targets, avoid adding an extra grouping folder when the existing feature path already provides enough context and the user prefers flatter test support layout.
+- When testing property wrappers that depend on injected runtime values, initialize the backing storage in `init` instead of trying to reference instance members from the wrapper attribute.
