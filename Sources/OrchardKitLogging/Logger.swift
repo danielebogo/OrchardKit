@@ -17,19 +17,24 @@ public final class Logger {
     public func log(
         _ level: LogLevel,
         _ message: @autoclosure () -> String,
+        verbosity: LogVerbosity = .default,
         metadata: @autoclosure () -> [String: String] = [:],
         fileID: String = #fileID,
         function: String = #function,
         line: UInt = #line,
         timestamp: @autoclosure () -> Date = Date()
     ) {
-        let activeRoutes = enabledRoutes(for: level)
+        let activeRoutes = enabledRoutes(
+            for: level,
+            verbosity: verbosity
+        )
         if activeRoutes.isEmpty {
             return
         }
 
         let payload = LogMessage(
             level: level,
+            verbosity: verbosity,
             message: message(),
             metadata: metadata(),
             fileID: fileID,
@@ -70,8 +75,16 @@ public final class Logger {
         logFilePath(for: .file)
     }
 
-    private func enabledRoutes(for level: LogLevel) -> [any LogRoute] {
+    private func enabledRoutes(
+        for level: LogLevel,
+        verbosity: LogVerbosity
+    ) -> [any LogRoute] {
         let snapshot = lock.withLock { routes }
-        return snapshot.filter { $0.isEnabled(for: level) }
+        return snapshot.filter {
+            $0.isEnabled(
+                for: level,
+                verbosity: verbosity
+            )
+        }
     }
 }

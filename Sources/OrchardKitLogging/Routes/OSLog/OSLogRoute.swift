@@ -18,6 +18,7 @@ protocol OSLogWriting {
 
 public struct OSLogRoute: LogRoute {
     private let writer: any OSLogWriting
+    private let verbosity: LogVerbosity
 
     public var routeType: LogRouteType {
         .osLog
@@ -25,20 +26,30 @@ public struct OSLogRoute: LogRoute {
 
     public init(
         subsystem: String,
-        category: String
+        category: String,
+        verbosity: LogVerbosity = .default
     ) {
+        self.verbosity = verbosity
         self.writer = DefaultOSLogWriter(
             subsystem: subsystem,
             category: category
         )
     }
 
-    init(writer: any OSLogWriting) {
+    init(
+        writer: any OSLogWriting,
+        verbosity: LogVerbosity = .default
+    ) {
+        self.verbosity = verbosity
         self.writer = writer
     }
 
-    public func isEnabled(for level: LogLevel) -> Bool {
-        writer.isEnabled(level: level.osLogType)
+    public func isEnabled(
+        for level: LogLevel,
+        verbosity: LogVerbosity
+    ) -> Bool {
+        self.verbosity.includes(verbosity)
+            && writer.isEnabled(level: level.osLogType)
     }
 
     public func log(_ message: LogMessage) {

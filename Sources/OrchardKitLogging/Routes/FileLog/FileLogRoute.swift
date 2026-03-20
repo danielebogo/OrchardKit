@@ -4,6 +4,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     public let logFileURL: URL
     public let routeType: LogRouteType
     public let maxBytes: Int
+    public let verbosity: LogVerbosity
 
     private let fileManager: FileManager
     private let writeQueue: DispatchQueue
@@ -15,6 +16,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     public init(
         fileURL: URL,
         routeType: LogRouteType = .file,
+        verbosity: LogVerbosity = .default,
         maxBytes: Int = 262_144,
         fileManager: FileManager = .default
     ) {
@@ -22,6 +24,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
 
         self.logFileURL = fileURL
         self.routeType = routeType
+        self.verbosity = verbosity
         self.maxBytes = maxBytes
         self.fileManager = fileManager
         self.writeQueue = DispatchQueue(
@@ -41,6 +44,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     public convenience init(
         fileName: String = "orchardkit-logs.txt",
         routeType: LogRouteType = .file,
+        verbosity: LogVerbosity = .default,
         maxBytes: Int = 262_144,
         fileManager: FileManager = .default
     ) {
@@ -50,6 +54,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
                 fileManager: fileManager
             ),
             routeType: routeType,
+            verbosity: verbosity,
             maxBytes: maxBytes,
             fileManager: fileManager
         )
@@ -67,8 +72,12 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         return baseDirectory.appendingPathComponent(fileName)
     }
 
-    public func isEnabled(for level: LogLevel) -> Bool {
-        level == .info || level == .error
+    public func isEnabled(
+        for level: LogLevel,
+        verbosity: LogVerbosity
+    ) -> Bool {
+        self.verbosity.includes(verbosity)
+            && (level == .info || level == .error)
     }
 
     public func log(_ message: LogMessage) {

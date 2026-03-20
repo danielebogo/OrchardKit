@@ -24,12 +24,35 @@ func loggerRoutesMessagesToAllRoutes() throws {
 
     let message = try #require(firstRoute.messages.first)
     #expect(message.level == .warning)
+    #expect(message.verbosity == .default)
     #expect(message.message == "Sync delayed")
     #expect(message.metadata == ["attempt": "1", "screen": "home"])
     #expect(message.fileID == "SyncViewModel.swift")
     #expect(message.function == "refresh()")
     #expect(message.line == 88)
     #expect(message.timestamp == timestamp)
+}
+
+@Test("Logger routes low verbosity logs only to matching routes")
+func loggerRoutesLowVerbosityLogsOnlyToMatchingRoutes() {
+    let defaultRoute = SpyRoute()
+    let lowRoute = VerbositySpyRoute(verbosity: .low)
+    let logger = OrchardKitLogging.Logger(
+        routes: [
+            defaultRoute,
+            lowRoute
+        ]
+    )
+
+    logger.log(
+        .debug,
+        "low detail",
+        verbosity: .low
+    )
+
+    #expect(defaultRoute.messages.isEmpty)
+    #expect(lowRoute.messages.count == 1)
+    #expect(lowRoute.messages.first?.verbosity == .low)
 }
 
 @Test("Logger supports adding routes at runtime")
@@ -41,6 +64,27 @@ func loggerAddsRoutesAfterInitialization() {
     logger.log(.info, "Boot complete")
 
     #expect(route.messages.count == 1)
+}
+
+@Test("Logger skips payload creation when no route accepts low verbosity")
+func loggerSkipsPayloadCreationWhenLowVerbosityIsDisabled() {
+    let route = LowOnlyDisabledRoute()
+    let logger = OrchardKitLogging.Logger(routes: [route])
+    var messageBuildCount = 0
+
+    func buildMessage() -> String {
+        messageBuildCount += 1
+        return "Low message"
+    }
+
+    logger.log(
+        .debug,
+        buildMessage(),
+        verbosity: .default
+    )
+
+    #expect(messageBuildCount == 0)
+    #expect(route.loggedMessages == 0)
 }
 
 @Test("Logger skips payload creation when all routes are disabled")

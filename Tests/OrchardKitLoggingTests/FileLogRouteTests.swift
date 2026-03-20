@@ -51,6 +51,87 @@ func fileLogRouteWritesOnlyInfoAndErrorLogs() throws {
     #expect(!contents.contains("[WARNING]"))
 }
 
+@Test("FileLogRoute skips low verbosity logs by default")
+func fileLogRouteSkipsLowVerbosityLogsByDefault() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
+    let fileRoute = FileLogRoute(
+        fileURL: fileURL,
+        maxBytes: 4_096,
+        fileManager: fileManager
+    )
+    let logger = OrchardKitLogging.Logger(routes: [fileRoute])
+
+    logger.log(
+        .info,
+        "default info"
+    )
+    logger.log(
+        .info,
+        "low info",
+        verbosity: .low
+    )
+    fileRoute.flushForTesting()
+
+    let contents = try String(
+        contentsOf: fileURL,
+        encoding: .utf8
+    )
+
+    #expect(contents.contains("[INFO] default info"))
+    #expect(!contents.contains("[INFO] low info"))
+}
+
+@Test("FileLogRoute can include low verbosity logs")
+func fileLogRouteCanIncludeLowVerbosityLogs() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
+    let fileRoute = FileLogRoute(
+        fileURL: fileURL,
+        verbosity: .low,
+        maxBytes: 4_096,
+        fileManager: fileManager
+    )
+    let logger = OrchardKitLogging.Logger(routes: [fileRoute])
+
+    logger.log(
+        .info,
+        "default info"
+    )
+    logger.log(
+        .info,
+        "low info",
+        verbosity: .low
+    )
+    fileRoute.flushForTesting()
+
+    let contents = try String(
+        contentsOf: fileURL,
+        encoding: .utf8
+    )
+
+    #expect(contents.contains("[INFO] default info"))
+    #expect(contents.contains("[INFO] low info"))
+}
+
 @Test("FileLogRoute caps file size")
 func fileLogRouteCapsFileSize() throws {
     let fileManager = FileManager.default

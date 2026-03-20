@@ -2,6 +2,7 @@ import Foundation
 
 public struct LogMessage: Equatable, Sendable {
     public let level: LogLevel
+    public let verbosity: LogVerbosity
     public let message: String
     public let metadata: [String: String]
     public let fileID: String
@@ -11,6 +12,7 @@ public struct LogMessage: Equatable, Sendable {
 
     public init(
         level: LogLevel,
+        verbosity: LogVerbosity = .default,
         message: String,
         metadata: [String: String] = [:],
         fileID: String,
@@ -19,6 +21,7 @@ public struct LogMessage: Equatable, Sendable {
         timestamp: Date = Date()
     ) {
         self.level = level
+        self.verbosity = verbosity
         self.message = message
         self.metadata = metadata
         self.fileID = fileID

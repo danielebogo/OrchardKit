@@ -25,3 +25,6 @@
 - When porting shared dependency helpers into a Swift 6 package, treat mutable static container state as a concurrency boundary from the start and protect it explicitly instead of relying on plain `static var`.
 - In test targets, avoid adding an extra grouping folder when the existing feature path already provides enough context and the user prefers flatter test support layout.
 - When testing property wrappers that depend on injected runtime values, initialize the backing storage in `init` instead of trying to reference instance members from the wrapper attribute.
+
+## 2026-03-20
+- When extending a public filtering API with a second axis, keep a compatibility helper for the original single-parameter query so tests and call sites can keep the common default behavior without extra churn.

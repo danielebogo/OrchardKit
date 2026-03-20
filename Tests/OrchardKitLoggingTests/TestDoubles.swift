@@ -19,12 +19,51 @@ struct RouteWithoutFileLocation: LogRoute {
 final class DisabledRoute: LogRoute {
     private(set) var loggedMessages = 0
 
-    func isEnabled(for level: LogLevel) -> Bool {
+    func isEnabled(
+        for level: LogLevel,
+        verbosity: LogVerbosity
+    ) -> Bool {
         false
     }
 
     func log(_ message: LogMessage) {
         loggedMessages += 1
+    }
+}
+
+final class LowOnlyDisabledRoute: LogRoute {
+    private(set) var loggedMessages = 0
+
+    func isEnabled(
+        for level: LogLevel,
+        verbosity: LogVerbosity
+    ) -> Bool {
+        verbosity == .low
+    }
+
+    func log(_ message: LogMessage) {
+        loggedMessages += 1
+    }
+}
+
+final class VerbositySpyRoute: LogRoute {
+    private let routeVerbosity: LogVerbosity
+
+    private(set) var messages: [LogMessage] = []
+
+    init(verbosity: LogVerbosity) {
+        self.routeVerbosity = verbosity
+    }
+
+    func isEnabled(
+        for level: LogLevel,
+        verbosity: LogVerbosity
+    ) -> Bool {
+        routeVerbosity.includes(verbosity)
+    }
+
+    func log(_ message: LogMessage) {
+        messages.append(message)
     }
 }
 
