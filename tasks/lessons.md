@@ -28,3 +28,5 @@
 
 ## 2026-03-20
 - When extending a public filtering API with a second axis, keep a compatibility helper for the original single-parameter query so tests and call sites can keep the common default behavior without extra churn.
+- For file-backed logger routes, bound queued writes separately from on-disk file size; `maxBytes` protects storage, not memory under burst logging.
+- When a route depends on filesystem setup, surface initialization failures explicitly instead of allowing a configured route to drop logs silently.

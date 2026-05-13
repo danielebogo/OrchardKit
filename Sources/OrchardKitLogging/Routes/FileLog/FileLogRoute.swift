@@ -4,40 +4,66 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     public let logFileURL: URL
     public let routeType: LogRouteType
     public let maxBytes: Int
+    public let maxPendingWrites: Int
     public let verbosity: LogVerbosity
 
     private let fileManager: FileManager
     private let writeQueue: DispatchQueue
     private let writeQueueKey = DispatchSpecificKey<Void>()
+    private let pendingWrites: DispatchSemaphore
 
     private var fileHandle: FileHandle?
     private var currentSize: Int = 0
 
-    public init(
+    public convenience init(
         fileURL: URL,
         routeType: LogRouteType = .file,
         verbosity: LogVerbosity = .default,
         maxBytes: Int = 262_144,
+        maxPendingWrites: Int = 256,
         fileManager: FileManager = .default
-    ) {
+    ) throws {
+        try self.init(
+            fileURL: fileURL,
+            routeType: routeType,
+            verbosity: verbosity,
+            maxBytes: maxBytes,
+            maxPendingWrites: maxPendingWrites,
+            fileManager: fileManager,
+            writeQueue: Self.makeWriteQueue()
+        )
+    }
+
+    init(
+        fileURL: URL,
+        routeType: LogRouteType = .file,
+        verbosity: LogVerbosity = .default,
+        maxBytes: Int = 262_144,
+        maxPendingWrites: Int = 256,
+        fileManager: FileManager = .default,
+        writeQueue: DispatchQueue
+    ) throws {
         precondition(maxBytes > 0, "maxBytes must be greater than zero.")
+        precondition(
+            maxPendingWrites > 0,
+            "maxPendingWrites must be greater than zero."
+        )
 
         self.logFileURL = fileURL
         self.routeType = routeType
         self.verbosity = verbosity
         self.maxBytes = maxBytes
+        self.maxPendingWrites = maxPendingWrites
         self.fileManager = fileManager
-        self.writeQueue = DispatchQueue(
-            label: "com.orchardkit.logging.file-route",
-            qos: .utility
-        )
+        self.writeQueue = writeQueue
+        self.pendingWrites = DispatchSemaphore(value: maxPendingWrites)
         self.writeQueue.setSpecific(
             key: writeQueueKey,
             value: ()
         )
 
-        writeQueue.sync {
-            prepareFileIfNeeded()
+        try writeQueue.sync {
+            try prepareFileIfNeeded()
         }
     }
 
@@ -46,9 +72,10 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         routeType: LogRouteType = .file,
         verbosity: LogVerbosity = .default,
         maxBytes: Int = 262_144,
+        maxPendingWrites: Int = 256,
         fileManager: FileManager = .default
-    ) {
-        self.init(
+    ) throws {
+        try self.init(
             fileURL: Self.defaultFileURL(
                 fileName: fileName,
                 fileManager: fileManager
@@ -56,6 +83,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
             routeType: routeType,
             verbosity: verbosity,
             maxBytes: maxBytes,
+            maxPendingWrites: maxPendingWrites,
             fileManager: fileManager
         )
     }
@@ -81,7 +109,12 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     }
 
     public func log(_ message: LogMessage) {
+        if pendingWrites.wait(timeout: .now()) == .timedOut {
+            return
+        }
+
         let workItem = DispatchWorkItem { [weak self] in
+            defer { self?.pendingWrites.signal() }
             self?.write(message)
         }
 
@@ -121,7 +154,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         }
 
         if fileHandle == nil {
-            openFileHandle()
+            try? openFileHandle()
         }
 
         if let fileHandle {
@@ -135,31 +168,55 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         }
     }
 
-    private func prepareFileIfNeeded() {
-        createParentDirectoryIfNeeded()
-        createFileIfNeeded()
+    private func prepareFileIfNeeded() throws {
+        try createParentDirectoryIfNeeded()
+        try createFileIfNeeded()
         currentSize = existingFileSize()
-        openFileHandle()
+        try openFileHandle()
     }
 
-    private func createParentDirectoryIfNeeded() {
+    private func createParentDirectoryIfNeeded() throws {
         let parentDirectory = logFileURL.deletingLastPathComponent()
+        var isDirectory = ObjCBool(false)
 
-        if !fileManager.fileExists(atPath: parentDirectory.path) {
-            try? fileManager.createDirectory(
+        if fileManager.fileExists(
+            atPath: parentDirectory.path,
+            isDirectory: &isDirectory
+        ) {
+            if isDirectory.boolValue {
+                return
+            }
+
+            throw FileLogRouteError.parentPathIsNotDirectory(parentDirectory)
+        }
+
+        do {
+            try fileManager.createDirectory(
                 at: parentDirectory,
                 withIntermediateDirectories: true
             )
+        } catch {
+            throw FileLogRouteError.failedToCreateParentDirectory(
+                parentDirectory,
+                error
+            )
         }
     }
 
-    private func createFileIfNeeded() {
-        if !fileManager.fileExists(atPath: logFileURL.path) {
-            _ = fileManager.createFile(
-                atPath: logFileURL.path,
-                contents: Data()
-            )
+    private func createFileIfNeeded() throws {
+        if fileManager.fileExists(atPath: logFileURL.path) {
+            return
         }
+
+        let created = fileManager.createFile(
+            atPath: logFileURL.path,
+            contents: Data()
+        )
+        if created {
+            return
+        }
+
+        throw FileLogRouteError.failedToCreateFile(logFileURL)
     }
 
     private func existingFileSize() -> Int {
@@ -169,13 +226,17 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         return fileSize?.intValue ?? 0
     }
 
-    private func openFileHandle() {
+    private func openFileHandle() throws {
         do {
             let handle = try FileHandle(forWritingTo: logFileURL)
             try handle.seekToEnd()
             fileHandle = handle
         } catch {
             fileHandle = nil
+            throw FileLogRouteError.failedToOpenFile(
+                logFileURL,
+                error
+            )
         }
     }
 
@@ -196,12 +257,19 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
             )
         } catch {
             currentSize = existingFileSize()
-            openFileHandle()
+            try? openFileHandle()
             return false
         }
 
         currentSize = existingFileSize()
-        openFileHandle()
+        try? openFileHandle()
         return true
+    }
+
+    private static func makeWriteQueue() -> DispatchQueue {
+        DispatchQueue(
+            label: "com.orchardkit.logging.file-route",
+            qos: .utility
+        )
     }
 }

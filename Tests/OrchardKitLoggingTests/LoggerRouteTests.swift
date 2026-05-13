@@ -158,7 +158,7 @@ func loggerExposesFileRoutePath() throws {
     }
 
     let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
-    let fileRoute = FileLogRoute(
+    let fileRoute = try FileLogRoute(
         fileURL: fileURL,
         maxBytes: 512,
         fileManager: fileManager
@@ -185,7 +185,7 @@ func loggerFileLookupSkipsNonFileRouteWithSameType() throws {
 
     let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
     let routeWithoutFileLocation = RouteWithoutFileLocation(routeType: .file)
-    let fileRoute = FileLogRoute(
+    let fileRoute = try FileLogRoute(
         fileURL: fileURL,
         maxBytes: 512,
         fileManager: fileManager
@@ -212,7 +212,7 @@ func loggerExposesFileRoutePathForCustomRouteType() throws {
 
     let fileURL = directoryURL.appendingPathComponent("orchardkit-custom-file-route.log")
     let routeType = LogRouteType.custom("upload")
-    let fileRoute = FileLogRoute(
+    let fileRoute = try FileLogRoute(
         fileURL: fileURL,
         routeType: routeType,
         maxBytes: 512,
@@ -239,7 +239,7 @@ func loggerPreservesFirstFilePathHelpers() throws {
     }
 
     let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
-    let fileRoute = FileLogRoute(
+    let fileRoute = try FileLogRoute(
         fileURL: fileURL,
         maxBytes: 512,
         fileManager: fileManager

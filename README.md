@@ -63,15 +63,17 @@ import OrchardKitLogging
 ```swift
 import OrchardKitLogging
 
+let fileRoute = try FileLogRoute(
+    fileName: "support.log"
+)
+
 let logger = Logger(
     routes: [
         OSLogRoute(
             subsystem: "com.example.myapp",
             category: "app"
         ),
-        FileLogRoute(
-            fileName: "support.log"
-        )
+        fileRoute
     ]
 )
 ```
@@ -101,6 +103,20 @@ logger.log(.error, "Download failed")
 logger.log(.fault, "Database corruption detected")
 logger.log(.critical, "Startup aborted")
 ```
+
+Logs use `.default` verbosity unless you mark a call as `.low`.
+
+```swift
+logger.log(
+    .debug,
+    "Prepared request payload",
+    verbosity: .low
+)
+```
+
+Routes also have a verbosity setting:
+- `.default` routes receive only default logs
+- `.low` routes receive default and low logs
 
 You can attach metadata too:
 
@@ -135,13 +151,15 @@ Current behavior:
 - writes on a background utility queue
 - stores logs as UTF-8 text
 - truncates the file if the next write would exceed `maxBytes`
+- drops new writes when `maxPendingWrites` is reached, so bursts cannot grow memory without a bound
 
 Create a file route with the default location:
 
 ```swift
-let fileRoute = FileLogRoute(
+let fileRoute = try FileLogRoute(
     fileName: "support.log",
-    maxBytes: 262_144
+    maxBytes: 262_144,
+    maxPendingWrites: 256
 )
 ```
 
@@ -152,11 +170,13 @@ let fileURL = FileManager.default
     .temporaryDirectory
     .appendingPathComponent("support.log")
 
-let fileRoute = FileLogRoute(
+let fileRoute = try FileLogRoute(
     fileURL: fileURL,
     routeType: .custom("support-upload")
 )
 ```
+
+`FileLogRoute` initialization is fallible because the route verifies its parent directory, file creation, and writable file handle up front.
 
 Default filename:
 - `orchardkit-logs.txt`

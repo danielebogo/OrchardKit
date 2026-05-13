@@ -15,7 +15,7 @@ func fileLogRouteWritesOnlyInfoAndErrorLogs() throws {
     }
 
     let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
-    let fileRoute = FileLogRoute(
+    let fileRoute = try FileLogRoute(
         fileURL: fileURL,
         maxBytes: 4_096,
         fileManager: fileManager
@@ -64,7 +64,7 @@ func fileLogRouteSkipsLowVerbosityLogsByDefault() throws {
     }
 
     let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
-    let fileRoute = FileLogRoute(
+    let fileRoute = try FileLogRoute(
         fileURL: fileURL,
         maxBytes: 4_096,
         fileManager: fileManager
@@ -104,7 +104,7 @@ func fileLogRouteCanIncludeLowVerbosityLogs() throws {
     }
 
     let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
-    let fileRoute = FileLogRoute(
+    let fileRoute = try FileLogRoute(
         fileURL: fileURL,
         verbosity: .low,
         maxBytes: 4_096,
@@ -146,7 +146,7 @@ func fileLogRouteCapsFileSize() throws {
 
     let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
     let maxBytes = 128
-    let fileRoute = FileLogRoute(
+    let fileRoute = try FileLogRoute(
         fileURL: fileURL,
         maxBytes: maxBytes,
         fileManager: fileManager
@@ -168,11 +168,90 @@ func fileLogRouteCapsFileSize() throws {
     #expect(fileSize <= maxBytes)
 }
 
+@Test("FileLogRoute fails when parent path is not a directory")
+func fileLogRouteFailsWhenParentPathIsNotDirectory() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let parentFileURL = directoryURL.appendingPathComponent("not-a-directory")
+    _ = fileManager.createFile(
+        atPath: parentFileURL.path,
+        contents: Data()
+    )
+    let fileURL = parentFileURL.appendingPathComponent("orchardkit-file-route.log")
+    var failedWithExpectedError = false
+
+    do {
+        _ = try FileLogRoute(
+            fileURL: fileURL,
+            maxBytes: 4_096,
+            fileManager: fileManager
+        )
+    } catch is FileLogRouteError {
+        failedWithExpectedError = true
+    } catch {
+        failedWithExpectedError = false
+    }
+
+    #expect(failedWithExpectedError)
+}
+
+@Test("FileLogRoute drops writes when pending limit is reached")
+func fileLogRouteDropsWritesWhenPendingLimitIsReached() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
+    let writeQueue = DispatchQueue(label: "FileLogRouteTests.suspended")
+    let fileRoute = try FileLogRoute(
+        fileURL: fileURL,
+        maxBytes: 4_096,
+        maxPendingWrites: 1,
+        fileManager: fileManager,
+        writeQueue: writeQueue
+    )
+    let logger = OrchardKitLogging.Logger(routes: [fileRoute])
+
+    writeQueue.suspend()
+    logger.log(
+        .info,
+        "first"
+    )
+    logger.log(
+        .info,
+        "second"
+    )
+    writeQueue.resume()
+    fileRoute.flushForTesting()
+
+    let contents = try String(
+        contentsOf: fileURL,
+        encoding: .utf8
+    )
+
+    #expect(contents.contains("[INFO] first"))
+    #expect(!contents.contains("[INFO] second"))
+}
+
 @Test("FileLogRoute supports custom file name initializer")
-func fileLogRouteSupportsCustomFileNameInitializer() {
+func fileLogRouteSupportsCustomFileNameInitializer() throws {
     let fileManager = FileManager.default
     let fileName = "orchardkit-\(UUID().uuidString).log"
-    let fileRoute = FileLogRoute(
+    let fileRoute = try FileLogRoute(
         fileName: fileName,
         maxBytes: 512,
         fileManager: fileManager
