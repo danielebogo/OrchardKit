@@ -2,6 +2,12 @@ import Foundation
 import Testing
 @testable import OrchardKitLogging
 
+// Failure modes:
+// - Parent directory creation fails
+// - Parent path exists as a file
+// - Log file creation fails
+// - Writable file handle cannot be opened
+
 @Test("FileLogRoute writes only info and error logs")
 func fileLogRouteWritesOnlyInfoAndErrorLogs() throws {
     let fileManager = FileManager.default
@@ -186,21 +192,131 @@ func fileLogRouteFailsWhenParentPathIsNotDirectory() throws {
         contents: Data()
     )
     let fileURL = parentFileURL.appendingPathComponent("orchardkit-file-route.log")
-    var failedWithExpectedError = false
-
-    do {
+    let expectedURL = fileURL.deletingLastPathComponent()
+    expectFileLogRouteInitializationFailure(
+        expectedDescription: "parentPathIsNotDirectory for \(expectedURL.path)"
+    ) {
         _ = try FileLogRoute(
             fileURL: fileURL,
             maxBytes: 4_096,
             fileManager: fileManager
         )
-    } catch is FileLogRouteError {
-        failedWithExpectedError = true
-    } catch {
-        failedWithExpectedError = false
+    } matches: { error in
+        if case .parentPathIsNotDirectory(let url) = error {
+            return url == expectedURL
+        }
+
+        return false
+    }
+}
+
+@Test("FileLogRoute fails when parent directory creation fails")
+func fileLogRouteFailsWhenParentDirectoryCreationFails() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
     }
 
-    #expect(failedWithExpectedError)
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
+    let expectedURL = fileURL.deletingLastPathComponent()
+    let fileSystem = FileLogRouteFileSystem(
+        fileManager: fileManager,
+        createDirectory: { _, _ in
+            throw CocoaError(.fileWriteNoPermission)
+        }
+    )
+
+    expectFileLogRouteInitializationFailure(
+        expectedDescription: "failedToCreateParentDirectory for \(expectedURL.path)"
+    ) {
+        _ = try FileLogRoute(
+            fileURL: fileURL,
+            maxBytes: 4_096,
+            fileSystem: fileSystem,
+            writeQueue: DispatchQueue(label: "FileLogRouteTests.parent-directory-failure")
+        )
+    } matches: { error in
+        if case .failedToCreateParentDirectory(let url, _) = error {
+            return url == expectedURL
+        }
+
+        return false
+    }
+}
+
+@Test("FileLogRoute fails when file creation fails")
+func fileLogRouteFailsWhenFileCreationFails() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
+    let fileSystem = FileLogRouteFileSystem(
+        fileManager: fileManager,
+        createFile: { _, _ in false }
+    )
+
+    expectFileLogRouteInitializationFailure(
+        expectedDescription: "failedToCreateFile for \(fileURL.path)"
+    ) {
+        _ = try FileLogRoute(
+            fileURL: fileURL,
+            maxBytes: 4_096,
+            fileSystem: fileSystem,
+            writeQueue: DispatchQueue(label: "FileLogRouteTests.file-creation-failure")
+        )
+    } matches: { error in
+        if case .failedToCreateFile(let url) = error {
+            return url == fileURL
+        }
+
+        return false
+    }
+}
+
+@Test("FileLogRoute fails when file handle cannot open")
+func fileLogRouteFailsWhenFileHandleCannotOpen() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
+    let fileSystem = FileLogRouteFileSystem(
+        fileManager: fileManager,
+        openFileHandle: { _ in
+            throw CocoaError(.fileWriteNoPermission)
+        }
+    )
+
+    expectFileLogRouteInitializationFailure(
+        expectedDescription: "failedToOpenFile for \(fileURL.path)"
+    ) {
+        _ = try FileLogRoute(
+            fileURL: fileURL,
+            maxBytes: 4_096,
+            fileSystem: fileSystem,
+            writeQueue: DispatchQueue(label: "FileLogRouteTests.file-open-failure")
+        )
+    } matches: { error in
+        if case .failedToOpenFile(let url, _) = error {
+            return url == fileURL
+        }
+
+        return false
+    }
 }
 
 @Test("FileLogRoute drops writes when pending limit is reached")
@@ -261,4 +377,28 @@ func fileLogRouteSupportsCustomFileNameInitializer() throws {
     }
 
     #expect(fileRoute.logFileURL.lastPathComponent == fileName)
+}
+
+/// Asserts that `FileLogRoute` initialization fails with the expected route error.
+///
+/// - Parameters:
+///   - expectedDescription: A readable description of the expected error case and context.
+///   - operation: The initialization operation expected to throw.
+///   - expectedErrorMatches: A matcher that verifies the exact error case and associated values.
+private func expectFileLogRouteInitializationFailure(
+    expectedDescription: String,
+    operation: () throws -> Void,
+    matches expectedErrorMatches: (FileLogRouteError) -> Bool
+) {
+    do {
+        try operation()
+        Issue.record("Expected \(expectedDescription).")
+    } catch let error as FileLogRouteError {
+        #expect(
+            expectedErrorMatches(error),
+            "Expected \(expectedDescription), got \(error)."
+        )
+    } catch {
+        Issue.record("Expected \(expectedDescription), got \(error).")
+    }
 }
