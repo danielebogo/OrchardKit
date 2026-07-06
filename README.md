@@ -11,6 +11,10 @@ Supported platforms:
 - tvOS 15+
 - macOS 12+
 
+## Requirements
+
+OrchardKit requires Swift 6.2 or newer. When building with Xcode, use Xcode 26 or newer.
+
 ## OrchardKitLogging
 
 `OrchardKitLogging` is a simple route-based logger.
