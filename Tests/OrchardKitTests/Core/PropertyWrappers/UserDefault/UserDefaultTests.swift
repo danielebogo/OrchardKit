@@ -35,6 +35,16 @@ struct UserDefaultTests {
         #expect(userDefaults[.userDefaultTestValue] == "updated")
     }
 
+    @Test("UserDefaults key writes and reads a URL value")
+    func userDefaultsKeyWritesAndReadsURLValue() throws {
+        let userDefaults = try #require(makeUserDefaults())
+        let key = UserDefaults.Key<URL>(name: "userDefaultTestURL")
+        let storedURL = URL(fileURLWithPath: "/tmp/orchard-kit-user-default-url")
+        userDefaults[key] = storedURL
+
+        #expect(userDefaults[key] == storedURL)
+    }
+
     @Test("Projected value can delete the stored value")
     func projectedValueDeletesStoredValue() throws {
         let userDefaults = try #require(makeUserDefaults())
