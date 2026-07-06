@@ -46,19 +46,20 @@ public final class Logger {
         activeRoutes.forEach { $0.log(payload) }
     }
 
+    /// Returns the log file URL for the first file-backed route with the requested route type.
+    ///
+    /// - Parameter routeType: The route type to match before reading the log file location.
+    /// - Returns: The matching route's log file URL, or `nil` when no matching file-backed route exists.
     public func logFileURL(for routeType: LogRouteType) -> URL? {
-        let snapshot = lock.withLock { routes }
-        let matchingFileRoute = snapshot.first { route in
-            if route.routeType != routeType {
-                return false
-            }
-
-            return route is any LogFileLocationProviding
+        logFileURL { route in
+            route.routeType == routeType
         }
-
-        return (matchingFileRoute as? any LogFileLocationProviding)?.logFileURL
     }
 
+    /// Returns the log file path for the first file-backed route with the requested route type.
+    ///
+    /// - Parameter routeType: The route type to match before reading the log file location.
+    /// - Returns: The matching route's log file path, or `nil` when no matching file-backed route exists.
     public func logFilePath(for routeType: LogRouteType) -> String? {
         if let logFileURL = logFileURL(for: routeType) {
             return logFileURL.path
@@ -67,12 +68,22 @@ public final class Logger {
         return nil
     }
 
+    /// Returns the first available file-backed route URL.
+    ///
+    /// - Returns: The first configured route's log file URL, or `nil` when no route provides a file location.
     public func firstLogFileURL() -> URL? {
-        logFileURL(for: .file)
+        logFileURL { _ in true }
     }
 
+    /// Returns the first available file-backed route path.
+    ///
+    /// - Returns: The first configured route's log file path, or `nil` when no route provides a file location.
     public func firstLogFilePath() -> String? {
-        logFilePath(for: .file)
+        if let logFileURL = firstLogFileURL() {
+            return logFileURL.path
+        }
+
+        return nil
     }
 
     private func enabledRoutes(
@@ -86,5 +97,24 @@ public final class Logger {
                 verbosity: verbosity
             )
         }
+    }
+
+    /// Returns the first log file URL from a route accepted by the predicate.
+    ///
+    /// - Parameter isMatchingRoute: A predicate that selects routes eligible for file lookup.
+    /// - Returns: The first eligible route's log file URL, or `nil` when no eligible route provides one.
+    private func logFileURL(
+        matching isMatchingRoute: (any LogRoute) -> Bool
+    ) -> URL? {
+        let snapshot = lock.withLock { routes }
+        let matchingFileRoute = snapshot.first { route in
+            if !isMatchingRoute(route) {
+                return false
+            }
+
+            return route is any LogFileLocationProviding
+        }
+
+        return (matchingFileRoute as? any LogFileLocationProviding)?.logFileURL
     }
 }
