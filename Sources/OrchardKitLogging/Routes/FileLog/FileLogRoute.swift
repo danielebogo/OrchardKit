@@ -101,11 +101,17 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     }
 
     public func isEnabled(
+        for level: LogLevel
+    ) -> Bool {
+        level == .info || level == .error
+    }
+
+    public func isEnabled(
         for level: LogLevel,
         verbosity: LogVerbosity
     ) -> Bool {
         self.verbosity.includes(verbosity)
-            && (level == .info || level == .error)
+            && isEnabled(for: level)
     }
 
     public func log(_ message: LogMessage) {
