@@ -187,7 +187,9 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
                 return
             }
 
-            throw FileLogRouteError.parentPathIsNotDirectory(parentDirectory)
+            throw FileLogRouteError.parentPathIsNotDirectory(
+                parentDirectoryURL: parentDirectory
+            )
         }
 
         do {
@@ -197,8 +199,8 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
             )
         } catch {
             throw FileLogRouteError.failedToCreateParentDirectory(
-                parentDirectory,
-                error
+                parentDirectoryURL: parentDirectory,
+                underlyingError: error
             )
         }
     }
@@ -216,7 +218,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
             return
         }
 
-        throw FileLogRouteError.failedToCreateFile(logFileURL)
+        throw FileLogRouteError.failedToCreateFile(fileURL: logFileURL)
     }
 
     private func existingFileSize() -> Int {
@@ -234,8 +236,8 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         } catch {
             fileHandle = nil
             throw FileLogRouteError.failedToOpenFile(
-                logFileURL,
-                error
+                fileURL: logFileURL,
+                underlyingError: error
             )
         }
     }

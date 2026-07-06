@@ -186,7 +186,7 @@ func fileLogRouteFailsWhenParentPathIsNotDirectory() throws {
         contents: Data()
     )
     let fileURL = parentFileURL.appendingPathComponent("orchardkit-file-route.log")
-    var failedWithExpectedError = false
+    var reportedParentDirectoryURL: URL?
 
     do {
         _ = try FileLogRoute(
@@ -194,13 +194,15 @@ func fileLogRouteFailsWhenParentPathIsNotDirectory() throws {
             maxBytes: 4_096,
             fileManager: fileManager
         )
-    } catch is FileLogRouteError {
-        failedWithExpectedError = true
+    } catch FileLogRouteError.parentPathIsNotDirectory(
+        parentDirectoryURL: let parentDirectoryURL
+    ) {
+        reportedParentDirectoryURL = parentDirectoryURL
     } catch {
-        failedWithExpectedError = false
+        reportedParentDirectoryURL = nil
     }
 
-    #expect(failedWithExpectedError)
+    #expect(reportedParentDirectoryURL?.path == parentFileURL.path)
 }
 
 @Test("FileLogRoute drops writes when pending limit is reached")
