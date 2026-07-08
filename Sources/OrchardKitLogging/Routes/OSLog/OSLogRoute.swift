@@ -45,11 +45,17 @@ public struct OSLogRoute: LogRoute {
     }
 
     public func isEnabled(
+        for level: LogLevel
+    ) -> Bool {
+        writer.isEnabled(level: level.osLogType)
+    }
+
+    public func isEnabled(
         for level: LogLevel,
         verbosity: LogVerbosity
     ) -> Bool {
         self.verbosity.includes(verbosity)
-            && writer.isEnabled(level: level.osLogType)
+            && isEnabled(for: level)
     }
 
     public func log(_ message: LogMessage) {

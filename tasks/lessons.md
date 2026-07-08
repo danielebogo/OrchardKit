@@ -32,4 +32,5 @@
 - When a route depends on filesystem setup, surface initialization failures explicitly instead of allowing a configured route to drop logs silently.
 
 ## 2026-07-06
+- When changing Swift protocol extension defaults, avoid silent compatibility shifts where existing conformers still compile but inherited helper behavior changes; make the new requirement explicit or preserve the old delegation with tests.
 - Do not rely on public Swift marker protocols to enforce closed supported-type sets; callers can forge conformances, so use explicit overload-gated APIs when unsupported types must fail at compile time.
