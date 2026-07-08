@@ -30,3 +30,13 @@
 - When extending a public filtering API with a second axis, keep a compatibility helper for the original single-parameter query so tests and call sites can keep the common default behavior without extra churn.
 - For file-backed logger routes, bound queued writes separately from on-disk file size; `maxBytes` protects storage, not memory under burst logging.
 - When a route depends on filesystem setup, surface initialization failures explicitly instead of allowing a configured route to drop logs silently.
+
+## 2026-07-06
+- For public Swift error enums, label associated values by role and add a targeted pattern-matching test for the payload callers are expected to inspect.
+- When testing truncation behavior, prove the pre-truncation write landed before asserting the post-truncation sentinel remains.
+- When a helper name promises “first” semantics, include a regression test with a custom route/source so the implementation cannot silently keep default-only behavior.
+- Before documenting a SwiftPM SemVer install snippet, verify the remote tag and GitHub release exist so README instructions resolve for consumers.
+- During a `0.x` release series, prefer `.upToNextMinor(from:)` in consumer install docs when minor versions may include breaking API changes.
+- When strengthening enum error coverage, build the test matrix from every case named in the issue evidence before optimizing the seam; do not stop at the suggested examples.
+- When changing Swift protocol extension defaults, avoid silent compatibility shifts where existing conformers still compile but inherited helper behavior changes; make the new requirement explicit or preserve the old delegation with tests.
+- Do not rely on public Swift marker protocols to enforce closed supported-type sets; callers can forge conformances, so use explicit overload-gated APIs when unsupported types must fail at compile time.
