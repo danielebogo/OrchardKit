@@ -11,6 +11,10 @@ Supported platforms:
 - tvOS 15+
 - macOS 12+
 
+## Requirements
+
+OrchardKit requires Swift 6.2 or newer. When building with Xcode, use Xcode 26 or newer.
+
 ## OrchardKitLogging
 
 `OrchardKitLogging` is a simple route-based logger.
@@ -29,6 +33,11 @@ Out of the box the package includes:
 
 ## Add The Package
 
+OrchardKit is distributed through SemVer tags. Depend on a versioned release
+instead of a mutable branch so package resolution stays predictable.
+During the `0.x` series, use an up-to-next-minor requirement so minor-version
+API changes require an explicit package update.
+
 ```swift
 // swift-tools-version: 6.2
 import PackageDescription
@@ -36,7 +45,10 @@ import PackageDescription
 let package = Package(
     name: "MyApp",
     dependencies: [
-        .package(url: "https://github.com/danielebogo/OrchardKit.git", branch: "main")
+        .package(
+            url: "https://github.com/danielebogo/OrchardKit.git",
+            .upToNextMinor(from: "0.1.0")
+        )
     ],
     targets: [
         .target(
@@ -263,3 +275,32 @@ Run the package tests with:
 ```bash
 swift test
 ```
+
+## Release Checklist
+
+Use SemVer for every public release. The initial package release is `v0.1.0`.
+
+1. Confirm the package is ready:
+
+```bash
+swift test
+```
+
+2. Choose the next version:
+   - Patch for compatible fixes.
+   - Minor for compatible new API or `0.x` breaking API changes.
+   - Major for breaking API changes after `1.0.0`.
+
+3. Create an annotated tag from the reviewed commit:
+
+Replace `v0.1.0` with the chosen version after the initial release.
+
+```bash
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin v0.1.0
+```
+
+4. Create a GitHub release from the tag and include:
+   - Supported platforms.
+   - Notable changes.
+   - Migration notes for breaking changes.
