@@ -32,6 +32,7 @@
 - When a route depends on filesystem setup, surface initialization failures explicitly instead of allowing a configured route to drop logs silently.
 
 ## 2026-07-06
+- When a helper name promises “first” semantics, include a regression test with a custom route/source so the implementation cannot silently keep default-only behavior.
 - Before documenting a SwiftPM SemVer install snippet, verify the remote tag and GitHub release exist so README instructions resolve for consumers.
 - During a `0.x` release series, prefer `.upToNextMinor(from:)` in consumer install docs when minor versions may include breaking API changes.
 - When strengthening enum error coverage, build the test matrix from every case named in the issue evidence before optimizing the seam; do not stop at the suggested examples.

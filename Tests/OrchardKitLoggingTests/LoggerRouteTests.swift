@@ -267,3 +267,29 @@ func loggerPreservesFirstFilePathHelpers() throws {
     #expect(logger.firstLogFilePath() == fileURL.path)
     #expect(logger.firstLogFileURL() == fileURL)
 }
+
+/// Verifies that first-file helper methods search all file-backed routes, not only `.file`.
+@Test("Logger first file helpers expose first custom file route")
+func loggerFirstFileHelpersExposeFirstCustomFileRoute() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-custom-file-route.log")
+    let fileRoute = try FileLogRoute(
+        fileURL: fileURL,
+        routeType: .custom("support-upload"),
+        maxBytes: 512,
+        fileManager: fileManager
+    )
+    let logger = OrchardKitLogging.Logger(routes: [fileRoute])
+
+    #expect(logger.firstLogFilePath() == fileURL.path)
+    #expect(logger.firstLogFileURL() == fileURL)
+}
