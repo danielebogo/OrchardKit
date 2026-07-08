@@ -126,6 +126,24 @@ func loggerSkipsPayloadCreationWhenRoutesAreDisabled() {
     #expect(disabledRoute.loggedMessages == 0)
 }
 
+@Test("Logger honors level-only route enablement")
+func loggerHonorsLevelOnlyRouteEnablement() {
+    let route = LevelOnlyFilteringRoute(disabledLevel: .trace)
+    let logger = OrchardKitLogging.Logger(routes: [route])
+    var messageBuildCount = 0
+
+    func buildMessage() -> String {
+        messageBuildCount += 1
+        return "Trace details"
+    }
+
+    logger.log(.trace, buildMessage())
+    logger.log(.info, "Info details")
+
+    #expect(messageBuildCount == 0)
+    #expect(route.messages.map(\.level) == [.info])
+}
+
 @Test("Logger supports interleaved route updates and logging")
 func loggerSupportsInterleavedRouteUpdates() {
     let primaryRoute = SpyRoute()
@@ -241,6 +259,32 @@ func loggerPreservesFirstFilePathHelpers() throws {
     let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
     let fileRoute = try FileLogRoute(
         fileURL: fileURL,
+        maxBytes: 512,
+        fileManager: fileManager
+    )
+    let logger = OrchardKitLogging.Logger(routes: [fileRoute])
+
+    #expect(logger.firstLogFilePath() == fileURL.path)
+    #expect(logger.firstLogFileURL() == fileURL)
+}
+
+/// Verifies that first-file helper methods search all file-backed routes, not only `.file`.
+@Test("Logger first file helpers expose first custom file route")
+func loggerFirstFileHelpersExposeFirstCustomFileRoute() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-custom-file-route.log")
+    let fileRoute = try FileLogRoute(
+        fileURL: fileURL,
+        routeType: .custom("support-upload"),
         maxBytes: 512,
         fileManager: fileManager
     )
