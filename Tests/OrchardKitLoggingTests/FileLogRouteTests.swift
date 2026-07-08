@@ -174,6 +174,67 @@ func fileLogRouteCapsFileSize() throws {
     #expect(fileSize <= maxBytes)
 }
 
+@Test(
+    "FileLogRoute keeps the next writable message after truncation",
+    .bug("https://github.com/danielebogo/OrchardKit/issues/4")
+)
+func fileLogRouteKeepsNextWritableMessageAfterTruncation() throws {
+    let fileManager = FileManager.default
+    let directoryURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try fileManager.createDirectory(
+        at: directoryURL,
+        withIntermediateDirectories: true
+    )
+    defer {
+        try? fileManager.removeItem(at: directoryURL)
+    }
+
+    let fileURL = directoryURL.appendingPathComponent("orchardkit-file-route.log")
+    func readLogContents() throws -> String {
+        try String(
+            contentsOf: fileURL,
+            encoding: .utf8
+        )
+    }
+
+    let firstMessage = LogMessage(
+        level: .info,
+        message: "before-truncation-marker-abcdefghijklmnopqrstuvwxyz",
+        fileID: "FileLogRouteTests.swift",
+        function: "fileLogRouteKeepsNextWritableMessageAfterTruncation()",
+        line: 1
+    )
+    let sentinelMessage = LogMessage(
+        level: .info,
+        message: "after-truncation-sentinel",
+        fileID: "FileLogRouteTests.swift",
+        function: "fileLogRouteKeepsNextWritableMessageAfterTruncation()",
+        line: 2
+    )
+    let firstByteCount = "\(firstMessage.renderedMessage)\n".utf8.count
+    let sentinelByteCount = "\(sentinelMessage.renderedMessage)\n".utf8.count
+    let fileRoute = try FileLogRoute(
+        fileURL: fileURL,
+        maxBytes: firstByteCount + sentinelByteCount - 1,
+        fileManager: fileManager
+    )
+
+    fileRoute.log(firstMessage)
+    fileRoute.flushForTesting()
+
+    let initialContents = try readLogContents()
+
+    #expect(initialContents.contains("before-truncation-marker"))
+
+    fileRoute.log(sentinelMessage)
+    fileRoute.flushForTesting()
+
+    let truncatedContents = try readLogContents()
+
+    #expect(truncatedContents.contains("after-truncation-sentinel"))
+    #expect(truncatedContents.contains("before-truncation-marker") == false)
+}
+
 @Test("FileLogRoute fails when parent path is not a directory")
 func fileLogRouteFailsWhenParentPathIsNotDirectory() throws {
     let fileManager = FileManager.default
