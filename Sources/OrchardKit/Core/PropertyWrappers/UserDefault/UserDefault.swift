@@ -35,10 +35,10 @@ public struct UserDefault<Value> {
     ///   - userDefaults: The backing store used by the wrapper.
     ///   - defaultValue: The fallback value returned when no stored value exists.
     @available(
-        *,
-        unavailable,
-        message: "UserDefault supports only String, Bool, Int, Float, Double, Data, and Date values."
-    )
+            *,
+            unavailable,
+            message: "UserDefault supports only String, Bool, Int, Float, Double, Data, and Date values."
+        )
     public init(
         key: UserDefaults.Key<Value>,
         userDefaults: UserDefaults = .standard,

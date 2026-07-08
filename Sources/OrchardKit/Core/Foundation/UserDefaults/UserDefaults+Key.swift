@@ -1,5 +1,6 @@
 import Foundation
 
+/// Adds typed keys for values stored in `UserDefaults`.
 public extension UserDefaults {
     /// A typed key for a value stored in `UserDefaults`.
     ///

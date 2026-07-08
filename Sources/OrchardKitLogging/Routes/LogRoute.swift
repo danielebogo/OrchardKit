@@ -26,11 +26,19 @@ public protocol LogRoute {
     func log(_ message: LogMessage)
 }
 
+/// Provides default route behavior for custom log routes.
 public extension LogRoute {
     var routeType: LogRouteType {
         .custom(String(describing: type(of: self)))
     }
 
+    /// Returns whether this route should receive a message with the requested level and verbosity.
+    ///
+    /// The default implementation accepts only `.default` verbosity and does not filter by level.
+    ///
+    /// - Parameters:
+    ///   - level: The severity of the candidate message.
+    ///   - verbosity: The verbosity requested by the log call.
     func isEnabled(
         for level: LogLevel,
         verbosity: LogVerbosity

@@ -1,5 +1,6 @@
 import Foundation
 
+/// Adds typed key access to `UserDefaults`.
 public extension UserDefaults {
     /// Accesses a typed `UserDefaults` value.
     ///
@@ -9,10 +10,10 @@ public extension UserDefaults {
     ///     exists or the stored value cannot be cast to the expected type.
     /// - Returns: The stored value, the fallback value, or `nil`.
     @available(
-        *,
-        unavailable,
-        message: "UserDefaults subscript supports only String, Bool, Int, Float, Double, Data, and Date values."
-    )
+            *,
+            unavailable,
+            message: "UserDefaults subscript supports only String, Bool, Int, Float, Double, Data, and Date values."
+        )
     subscript<T>(
         key: Key<T>,
         default defaultProvider: @autoclosure () -> T? = nil
