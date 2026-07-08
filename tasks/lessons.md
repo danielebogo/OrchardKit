@@ -32,6 +32,8 @@
 - When a route depends on filesystem setup, surface initialization failures explicitly instead of allowing a configured route to drop logs silently.
 
 ## 2026-07-06
+- Before documenting a SwiftPM SemVer install snippet, verify the remote tag and GitHub release exist so README instructions resolve for consumers.
+- During a `0.x` release series, prefer `.upToNextMinor(from:)` in consumer install docs when minor versions may include breaking API changes.
 - When strengthening enum error coverage, build the test matrix from every case named in the issue evidence before optimizing the seam; do not stop at the suggested examples.
 - When changing Swift protocol extension defaults, avoid silent compatibility shifts where existing conformers still compile but inherited helper behavior changes; make the new requirement explicit or preserve the old delegation with tests.
 - Do not rely on public Swift marker protocols to enforce closed supported-type sets; callers can forge conformances, so use explicit overload-gated APIs when unsupported types must fail at compile time.
