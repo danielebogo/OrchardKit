@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  swift-package:
+    name: Swift Package
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          set -euo pipefail
+
+          xcode_path="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' -print | sort | tail -n 1)"
+
+          if [ -z "$xcode_path" ]; then
+            echo "Xcode 26 is required to build Swift tools version 6.2 packages."
+            exit 1
+          fi
+
+          sudo xcode-select -s "$xcode_path/Contents/Developer"
+          xcodebuild -version
+          swift --version
+
+      - name: Validate package manifest
+        run: swift package describe
+
+      - name: Run tests
+        run: swift test

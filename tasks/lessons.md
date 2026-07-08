@@ -32,6 +32,7 @@
 - When a route depends on filesystem setup, surface initialization failures explicitly instead of allowing a configured route to drop logs silently.
 
 ## 2026-07-06
+- For SwiftPM CI, match the workflow toolchain to `swift-tools-version`; `macos-latest` can lag the required Swift version, so select the needed Xcode major version explicitly.
 - For public Swift error enums, label associated values by role and add a targeted pattern-matching test for the payload callers are expected to inspect.
 - When testing truncation behavior, prove the pre-truncation write landed before asserting the post-truncation sentinel remains.
 - When a helper name promises “first” semantics, include a regression test with a custom route/source so the implementation cannot silently keep default-only behavior.
