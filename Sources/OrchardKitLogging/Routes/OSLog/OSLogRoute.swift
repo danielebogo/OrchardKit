@@ -58,11 +58,17 @@ public struct OSLogRoute: LogRoute {
     ///   - level: The severity of the candidate message.
     ///   - verbosity: The verbosity requested by the log call.
     public func isEnabled(
+        for level: LogLevel
+    ) -> Bool {
+        writer.isEnabled(level: level.osLogType)
+    }
+
+    public func isEnabled(
         for level: LogLevel,
         verbosity: LogVerbosity
     ) -> Bool {
         self.verbosity.includes(verbosity)
-            && writer.isEnabled(level: level.osLogType)
+            && isEnabled(for: level)
     }
 
     /// Writes a message to Apple unified logging.

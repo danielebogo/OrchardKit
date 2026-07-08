@@ -1,33 +1,33 @@
 /// A destination that receives routed log messages.
 public protocol LogRoute {
-    /// The identity used to look up this route in a logger.
+    /// The stable route kind used for route-specific lookups.
     var routeType: LogRouteType { get }
-    /// Returns whether this route should receive a message with the requested level and verbosity.
+
+    /// Returns whether this route accepts logs at the supplied level.
+    ///
+    /// - Parameter level: The log level being evaluated.
+    /// - Returns: `true` when the route should receive logs at `level`.
+    func isEnabled(for level: LogLevel) -> Bool
+
+    /// Returns whether this route accepts logs for the supplied level and verbosity.
     ///
     /// - Parameters:
-    ///   - level: The severity of the candidate message.
-    ///   - verbosity: The verbosity requested by the log call.
+    ///   - level: The log level being evaluated.
+    ///   - verbosity: The verbosity requested for the log event.
+    /// - Returns: `true` when the route should receive matching log events.
     func isEnabled(
         for level: LogLevel,
         verbosity: LogVerbosity
     ) -> Bool
-    /// Receives a materialized message for route-specific output.
+
+    /// Sends a prepared log message to the route.
+    ///
+    /// - Parameter message: The message created after route enablement succeeds.
     func log(_ message: LogMessage)
 }
 
 /// Provides default route behavior for custom log routes.
 public extension LogRoute {
-    /// Returns whether this route should receive a default-verbosity message with the requested level.
-    ///
-    /// - Parameter level: The severity of the candidate message.
-    func isEnabled(for level: LogLevel) -> Bool {
-        isEnabled(
-            for: level,
-            verbosity: .default
-        )
-    }
-
-    /// The default route identity based on the conforming type name.
     var routeType: LogRouteType {
         .custom(String(describing: type(of: self)))
     }
@@ -43,6 +43,7 @@ public extension LogRoute {
         for level: LogLevel,
         verbosity: LogVerbosity
     ) -> Bool {
-        verbosity == .default
+        isEnabled(for: level)
+            && verbosity == .default
     }
 }
