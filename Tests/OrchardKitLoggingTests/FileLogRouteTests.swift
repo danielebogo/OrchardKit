@@ -263,7 +263,7 @@ func fileLogRouteFailsWhenParentPathIsNotDirectory() throws {
             fileManager: fileManager
         )
     } matches: { error in
-        if case .parentPathIsNotDirectory(let url) = error {
+        if case .parentPathIsNotDirectory(parentDirectoryURL: let url) = error {
             return url == expectedURL
         }
 
@@ -298,7 +298,7 @@ func fileLogRouteFailsWhenParentDirectoryCreationFails() throws {
             writeQueue: DispatchQueue(label: "FileLogRouteTests.parent-directory-failure")
         )
     } matches: { error in
-        if case .failedToCreateParentDirectory(let url, _) = error {
+        if case .failedToCreateParentDirectory(parentDirectoryURL: let url, underlyingError: _) = error {
             return url == expectedURL
         }
 
@@ -334,7 +334,7 @@ func fileLogRouteFailsWhenFileCreationFails() throws {
             writeQueue: DispatchQueue(label: "FileLogRouteTests.file-creation-failure")
         )
     } matches: { error in
-        if case .failedToCreateFile(let url) = error {
+        if case .failedToCreateFile(fileURL: let url) = error {
             return url == fileURL
         }
 
@@ -372,7 +372,7 @@ func fileLogRouteFailsWhenFileHandleCannotOpen() throws {
             writeQueue: DispatchQueue(label: "FileLogRouteTests.file-open-failure")
         )
     } matches: { error in
-        if case .failedToOpenFile(let url, _) = error {
+        if case .failedToOpenFile(fileURL: let url, underlyingError: _) = error {
             return url == fileURL
         }
 
