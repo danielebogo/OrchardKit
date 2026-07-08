@@ -20,7 +20,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     /// The maximum verbosity this route accepts.
     public let verbosity: LogVerbosity
 
-    private let fileManager: FileManager
+    private let fileSystem: FileLogRouteFileSystem
     private let writeQueue: DispatchQueue
     private let writeQueueKey = DispatchSpecificKey<Void>()
     private let pendingWrites: DispatchSemaphore
@@ -61,13 +61,33 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         )
     }
 
-    init(
+    convenience init(
         fileURL: URL,
         routeType: LogRouteType = .file,
         verbosity: LogVerbosity = .default,
         maxBytes: Int = 262_144,
         maxPendingWrites: Int = 256,
         fileManager: FileManager = .default,
+        writeQueue: DispatchQueue
+    ) throws {
+        try self.init(
+            fileURL: fileURL,
+            routeType: routeType,
+            verbosity: verbosity,
+            maxBytes: maxBytes,
+            maxPendingWrites: maxPendingWrites,
+            fileSystem: FileLogRouteFileSystem(fileManager: fileManager),
+            writeQueue: writeQueue
+        )
+    }
+
+    init(
+        fileURL: URL,
+        routeType: LogRouteType = .file,
+        verbosity: LogVerbosity = .default,
+        maxBytes: Int = 262_144,
+        maxPendingWrites: Int = 256,
+        fileSystem: FileLogRouteFileSystem,
         writeQueue: DispatchQueue
     ) throws {
         precondition(maxBytes > 0, "maxBytes must be greater than zero.")
@@ -81,7 +101,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         self.verbosity = verbosity
         self.maxBytes = maxBytes
         self.maxPendingWrites = maxPendingWrites
-        self.fileManager = fileManager
+        self.fileSystem = fileSystem
         self.writeQueue = writeQueue
         self.pendingWrites = DispatchSemaphore(value: maxPendingWrites)
         self.writeQueue.setSpecific(
@@ -244,7 +264,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         let parentDirectory = logFileURL.deletingLastPathComponent()
         var isDirectory = ObjCBool(false)
 
-        if fileManager.fileExists(
+        if fileSystem.fileManager.fileExists(
             atPath: parentDirectory.path,
             isDirectory: &isDirectory
         ) {
@@ -256,7 +276,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
         }
 
         do {
-            try fileManager.createDirectory(
+            try fileSystem.createDirectory(
                 at: parentDirectory,
                 withIntermediateDirectories: true
             )
@@ -269,11 +289,11 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     }
 
     private func createFileIfNeeded() throws {
-        if fileManager.fileExists(atPath: logFileURL.path) {
+        if fileSystem.fileManager.fileExists(atPath: logFileURL.path) {
             return
         }
 
-        let created = fileManager.createFile(
+        let created = fileSystem.createFile(
             atPath: logFileURL.path,
             contents: Data()
         )
@@ -285,7 +305,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
     }
 
     private func existingFileSize() -> Int {
-        let attributes = try? fileManager.attributesOfItem(atPath: logFileURL.path)
+        let attributes = try? fileSystem.fileManager.attributesOfItem(atPath: logFileURL.path)
         let fileSize = attributes?[.size] as? NSNumber
 
         return fileSize?.intValue ?? 0
@@ -293,7 +313,7 @@ public final class FileLogRoute: LogRoute, LogFileLocationProviding {
 
     private func openFileHandle() throws {
         do {
-            let handle = try FileHandle(forWritingTo: logFileURL)
+            let handle = try fileSystem.openFileHandle(forWritingTo: logFileURL)
             try handle.seekToEnd()
             fileHandle = handle
         } catch {
