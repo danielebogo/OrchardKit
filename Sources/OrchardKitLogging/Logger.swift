@@ -1,19 +1,42 @@
 import Foundation
 
+/// Routes log calls to enabled destinations.
+///
+/// The logger is safe to update from multiple threads. Message, metadata, and timestamp autoclosures are evaluated only
+/// when at least one configured route accepts the requested level and verbosity.
 public final class Logger {
     private let lock = NSLock()
     private var routes: [any LogRoute]
 
+    /// Creates a logger with the routes that should receive messages.
+    ///
+    /// - Parameter routes: The initial destinations for log output.
     public init(routes: [any LogRoute] = []) {
         self.routes = routes
     }
 
+    /// Adds a route that can receive future log messages.
+    ///
+    /// - Parameter route: The destination to append to this logger.
     public func addRoute(_ route: any LogRoute) {
         lock.withLock {
             routes.append(route)
         }
     }
 
+    /// Sends a message to every route enabled for the requested level and verbosity.
+    ///
+    /// Message, metadata, and timestamp providers are evaluated only when at least one route will receive the message.
+    ///
+    /// - Parameters:
+    ///   - level: The severity of the event.
+    ///   - message: A lazily evaluated message string.
+    ///   - verbosity: The verbosity requested for this message.
+    ///   - metadata: Lazily evaluated key-value details attached to the message.
+    ///   - fileID: The Swift file identifier for the call site.
+    ///   - function: The function name for the call site.
+    ///   - line: The source line for the call site.
+    ///   - timestamp: A lazily evaluated timestamp for the message.
     public func log(
         _ level: LogLevel,
         _ message: @autoclosure () -> String,

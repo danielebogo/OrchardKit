@@ -126,6 +126,24 @@ func loggerSkipsPayloadCreationWhenRoutesAreDisabled() {
     #expect(disabledRoute.loggedMessages == 0)
 }
 
+@Test("Logger honors level-only route enablement")
+func loggerHonorsLevelOnlyRouteEnablement() {
+    let route = LevelOnlyFilteringRoute(disabledLevel: .trace)
+    let logger = OrchardKitLogging.Logger(routes: [route])
+    var messageBuildCount = 0
+
+    func buildMessage() -> String {
+        messageBuildCount += 1
+        return "Trace details"
+    }
+
+    logger.log(.trace, buildMessage())
+    logger.log(.info, "Info details")
+
+    #expect(messageBuildCount == 0)
+    #expect(route.messages.map(\.level) == [.info])
+}
+
 @Test("Logger supports interleaved route updates and logging")
 func loggerSupportsInterleavedRouteUpdates() {
     let primaryRoute = SpyRoute()

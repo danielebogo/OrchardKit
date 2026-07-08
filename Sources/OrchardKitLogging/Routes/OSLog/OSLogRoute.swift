@@ -16,14 +16,22 @@ protocol OSLogWriting {
     )
 }
 
+/// A route that forwards log messages to Apple unified logging.
 public struct OSLogRoute: LogRoute {
     private let writer: any OSLogWriting
     private let verbosity: LogVerbosity
 
+    /// The route identity used for logger lookups.
     public var routeType: LogRouteType {
         .osLog
     }
 
+    /// Creates a route backed by Apple unified logging.
+    ///
+    /// - Parameters:
+    ///   - subsystem: The subsystem passed to `OSLog`.
+    ///   - category: The category passed to `OSLog`.
+    ///   - verbosity: The maximum verbosity this route accepts.
     public init(
         subsystem: String,
         category: String,
@@ -44,14 +52,26 @@ public struct OSLogRoute: LogRoute {
         self.writer = writer
     }
 
+    /// Returns whether Apple unified logging is enabled for the level and this route accepts the requested verbosity.
+    ///
+    /// - Parameters:
+    ///   - level: The severity of the candidate message.
+    ///   - verbosity: The verbosity requested by the log call.
+    public func isEnabled(
+        for level: LogLevel
+    ) -> Bool {
+        writer.isEnabled(level: level.osLogType)
+    }
+
     public func isEnabled(
         for level: LogLevel,
         verbosity: LogVerbosity
     ) -> Bool {
         self.verbosity.includes(verbosity)
-            && writer.isEnabled(level: level.osLogType)
+            && isEnabled(for: level)
     }
 
+    /// Writes a message to Apple unified logging.
     public func log(_ message: LogMessage) {
         writer.log(
             level: message.level.osLogType,
